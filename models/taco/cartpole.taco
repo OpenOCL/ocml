@@ -13,12 +13,12 @@ param theta0 := 0;
 var t := 1, >= 0;
 var tf := 9.0, >= 5, <= 10;
 
-var p := 1, >= -5, <= 5;
-var theta := 0.1, >= -2*pi, <= 2*pi;
-var v := 0.1;
-var omega := 0.1;
+var p := p0, >= -5, <= 5;
+var theta := theta0, >= -2*pi, <= 2*pi;
+var v := 0 >= -20, <= 20;
+var omega := 0 >= -2*pi, <= 2*pi;
 
-var F := 0.1, >= -30 <= 30;
+var F := -1, >= -30 <= 30;
 
 param phl := 0.5*l;
 param total_mass := cart_mass+pole_mass;

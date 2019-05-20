@@ -1,0 +1,24 @@
+include OptimalControl.mod;
+
+var t;
+
+var x := 0, >= -0.25;
+var y := 0;
+
+var F := 0, >= -1 <= 1;
+
+minimize force:
+  integral(x^2+y^2+F^2, 10);
+
+subject to
+  dpx: diff(x, t) = (1-y^2)*x-y+F;
+  dpy: diff(y, t) = x;
+
+  ic1: eval(x, 0) = 0;
+  ic2: eval(y, 0) = 1;
+
+let F.type := "u0";
+option solver muscod;
+option muscod_options "nshoot=30 atol=1e-6 itmax=200";
+option muscod_auxfiles "rc";
+solve;
