@@ -1,0 +1,33 @@
+param g := 9.81;
+param l := 1;
+
+var t;
+
+var px := 0, >= -1, <= 1;
+var py := 1, >= -1, <= 1;
+var vx := 0; 
+var vy := 0; 
+
+var lambda := 1, >= 0;
+
+var F := 10, >= -10 <= 10;
+
+var ddpx: -1/m * lambda * px + F
+var ddpy: -1/m * lambda * py + g
+
+minimize control_cost:
+  integral( 10^(-3) * F )
+  
+subject to
+
+  dpx: diff(px, t) = vx;
+  dpy: diff(py, t) = xy;
+  dvx: diff(vx, t) = ddpx;
+  dvy: diff(vy, t) = ddpy;
+  
+  alg: eval(ddp0, t) * p0 + eval(ddp1, t) * p1 + vx^2 + vy^2 = 0;
+  
+  ic0: eval(px, 0)^2 + eval(py, 0)^2 = l^2;
+  ic1: eval(px,0)*eval(vx,0) + eval(py,0)*eval(vy,0) = 0;
+  
+  
