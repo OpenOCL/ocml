@@ -1,32 +1,39 @@
 include OptimalControl.mod;
 
-param pi := 3.14;
+param pi := 3.14159265359;
 
 param g := 9.81;
 param l := 1;
 param cart_mass := 1;
 param pole_mass := 0.1;
-param theta0 := 10*pi/180;
 
-var t;
+param p0 := 0;
+param theta0 := 0;
+
+var t := 1, >= 0;
+var tf := 9.0, >= 5, <= 10;
 
 var p := 1, >= -5, <= 5;
-var theta := -2*pi, >= -2*pi, <= 2*pi;
-var v := 0;
-var omega := 0;
+var theta := 0.1, >= -2*pi, <= 2*pi;
+var v := 0.1;
+var omega := 0.1;
 
-var F := 0, >= -30 <= 30;
+var F := 0.1, >= -30 <= 30;
 
-var total_mass = cart_mass+pole_mass;
-var com_pole = pole_mass*0.5;
+param phl := 0.5*l;
+param total_mass := cart_mass+pole_mass;
+param com_pole := pole_mass*phl;
 
 var ctheta = cos(theta);
 var stheta = sin(theta);
-var dv = (u.F + pml*(x.omega^2*stheta-domega*ctheta)) / m;
-var domega =  (g*stheta + ctheta * (-u.F-pml*x.omega^2*stheta) / m) / (phl * (4.0 / 3.0 - pm * ctheta^2 / m));
+var domega =  (g*stheta + ctheta * (-F-com_pole*omega^2*stheta) / total_mass) / (phl * (4.0 / 3.0 - pole_mass * ctheta^2 / total_mass));
+var dv = (F + com_pole*(omega^2*stheta-domega*ctheta)) / total_mass;
 
-minimize control_cost:
-  eval(t, 10);
+minimize force:
+  integral(F^2, tf);
+
+minimize time:
+  eval(t, tf);
 
 subject to
   dpx: diff(p, t) = v;
@@ -34,10 +41,18 @@ subject to
   dvx: diff(v, t) = dv;
   dvy: diff(omega, t) = domega;
 
-  ic0: eval(p, 0) = 0;
-  ic1: eval(v, 0) = 0;
-  ic2: eval(theta, 0) = pi;
-  ic3: eval(omega, 0) = 0;
+  ic1: eval(p, 0) = p0;
+  ic2: eval(v, 0) = 0;
+  ic3: eval(theta, 0) = theta0;
+  ic4: eval(omega, 0) = 0;
+
+  fc1: eval(p, tf) = 0;
+  fc2: eval(v, tf) = 0;
+  fc3: eval(theta, tf) = 0;
+  fc4: eval(omega, tf) = 0;
 
 let F.type := "u0";
+option solver muscod;
+option muscod_options "nshoot=60 atol=1e-6 itmax=200";
+option muscod_auxfiles "rc";
 solve;
