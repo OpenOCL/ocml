@@ -1,0 +1,47 @@
+constant pi := 3.14159265359;
+
+constant g := 9.81;
+constant l := 1;
+constant cart_mass := 1;
+constant pole_mass := 0.1;
+
+constant p0 := 0;
+constant theta0 := 0;
+
+independent t := 1, >= 0, <= 20;
+
+state p := p0, >= -5, <= 5;
+state theta := theta0, >= -2*pi, <= 2*pi;
+state v := 0 >= -20, <= 20;
+state omega := 0 >= -2*pi, <= 2*pi;
+state F_lagrange := 0, >= 0;
+
+control F := -1, >= -30 <= 30;
+
+constant phl := 0.5*l;
+constant total_mass := cart_mass+pole_mass;
+constant com_pole := pole_mass*phl;
+
+function ctheta := cos(theta);
+function stheta := sin(theta);
+function domega :=  (g*stheta + ctheta * (-F-com_pole*omega^2*stheta) / total_mass) / (phl * (4.0 / 3.0 - pole_mass * ctheta^2 / total_mass));
+function dv := (F + com_pole*(omega^2*stheta-domega*ctheta)) / total_mass;
+
+minimize.arrival force(x): F_lagrange
+minimize.arrival time(x): t; 
+
+constraint.ode dpx(x,z,u): diff(x.p) = v;
+constraint.ode dpy(x,z,u): diff(x.theta) = omega;
+constraint.ode dvx(x,z,u): diff(x.v) = dv;
+constraint.ode dvy(x,z,u): diff(x.omega) = domega;
+constraint.ode dvy(x,z,u): diff(x.lagrange) = u.F^2;
+
+constraint.initial ic1(x): x.p = p0;
+constraint.initial ic2(x): x.v = 0;
+constraint.initial ic3(x): x.theta = theta0;
+constraint.initial ic4(x): x.omega = 0;
+
+constraint.final fc1(x): x.p = 0;
+constraint.final fc2(x): x.v = 0;
+constraint.final fc3(x): x.theta = 0;
+constraint.final fc4(x): x.omega = 0;
