@@ -1,0 +1,106 @@
+# ----------------------------------------------------------------
+# Semibatch esterification problem using AMPL and TACO
+# (c) Christian Kirches, Sven Leyffer
+# ----------------------------------------------------------------
+include OptimalControl.mod;
+
+var t;
+
+# propionic anhydride (species A, sd0) [mol]
+var nA := 0.0, >= 0.0, <= 10.0;
+
+# 2-butanol (species B, sd1) [mol]
+var nB := 6.893955747436589, >= 0.0, <= 10.0 suffix scale 10.0;
+
+# propionic acid (species C, sd2) [mol]
+var nC := 0.0, >= 0.0, <= 10.0;
+
+# reactor temperature change (sd3) [K]
+var Tr := 0.0, >= -23.0, <= 30.0 suffix scale 10.0;
+
+# accumulated dosing of propionic anhydride [mol]
+var nK1 := 0.0, >= 0.0, <= 7.0 suffix scale 5.0;
+
+# theoretical adiabatic temperature rise (DAE state) [degrees Celsius]
+var xA := 293.15, >= 270.15, <= 363.15 suffix type "dae" suffix scale 300.0;
+
+# dosing feed [kg/s]
+var dF := 0.0002472, >= 0.0, <= 0.0005 suffix type "u0" suffix scale 1.0e-2;
+
+# dosing temperature [K]
+var Tdos := 298.15, >= 298.15, <= 298.15 suffix type "u0" suffix scale 100.0;
+
+# ambient temperature [K]
+var Tamb := 298.15, >= 298.15, <= 298.15 suffix type "u0" suffix scale 100.0;
+
+# jacket temperature change [K]
+var dTj := 0.0, >= 0.0, <= 0.0 suffix type "u0";
+
+param TJ    := 313.15;
+param Tr_sp := 313.15;
+param MA    :=   0.13014;
+param MB    :=   0.07412;
+param MC    :=   0.07408;
+param MD    :=   0.13011;
+param U1    := 195;
+param U2    := 155;
+param V1u   :=   0.8;
+param V2u   :=   1.6;
+param nS0   :=   5.01/98.08;
+param N1    :=   1.58;
+param N2    :=   0.76;
+param EA    :=   9.14E+4;
+param A1    :=   9.35E+10;
+param A2    :=   9.22E+10;
+param A3    :=   9.78E+10;
+param R     :=   8.314;
+param V1    :=   1;
+param V2    :=   2;
+param CpI1  := 117.3;
+param CpI2  := 198.4;
+param Amin  :=   0.0113;
+param Vmin  :=   0.124;
+param d     :=   0.155;
+param alpha :=   0.1;
+param HA    := 59458;
+
+var Tr_   = Tr + Tr_sp;
+var dens0 = 1000*0.13014/(0.46199*0.2166^((1-Tr_/630.0)^0.2857));
+var dens1 = 1000*0.07412/(0.3199 *0.2088^((1-Tr_/536.01)^0.2857));
+var dens2 = 1000*0.07408/(0.2848 *0.1993^((1-Tr_/611.0)^0.2857));
+var dens3 = 1000*0.13011/(0.5078 *0.2265^((1-Tr_/578.01)^0.2857));
+var V     = (nA*MA/dens0 + nB*MB/dens1 + nC*MC/dens2 + nC*MD/dens3) * 1000;
+var Ua    = U1 + (U2-U1)/(V2u-V1u)*(V-V1u);
+var xA_   = nA/(nA+nB+2*nC+nS0);
+var r     = ( A1*exp(-EA/(R*Tr_)) + A2*exp(-EA/(R*Tr_))
+          * (nC/V)^N1 + A3*exp(-EA/(R*Tr_)) * (nS0/V)^N2 ) * (nA/V) * (nB/V);
+var Cpi   = CpI1 + (CpI2 - CpI1)/(V2-V1) * (V-V1);
+var Area  = (Amin + 4*(V-Vmin)/(1000*d));
+var cp0   = 683.7305 - 3.7009 * Tr_ + 9.6E-3 * Tr_^2 - 7.458E-6 * Tr_^3;
+var cp1   = 242.5725 - 2.3128 * Tr_ + 1.07E-2 * Tr_^2 - 1.159E-5 * Tr_^3;
+var cp2   =  94.8369 - 0.2432 * Tr_ + 2.2E-3 * Tr_^2 - 2.51E-6 * Tr_^3;
+var cp3   = 206.162  + 0.1994689 * Tr_ - 3.55512E-4 * Tr_^2 - 1.03625E-6 * Tr_^3;
+var cpm   = nA*cp0 + nB*cp1 + nC*cp2 + nC*cp3;
+var qdil  = -(-2232.74201/0.13963 * exp(-xA_/0.13963)) * (dF/MA-r*V);
+
+minimize Tracking:
+	integral (nB^2,3600) suffix scale 1.0E+3;
+
+subject to
+
+ODE_nA:  diff(nA,t) = dF/MA - r*V;
+ODE_nB:  diff(nB,t) = -r*V;
+ODE_nC:	 diff(nC,t) = r*V;
+ODE_Tr:  diff(Tr,t) = ( r*HA*V - qdil - Ua*Area*(Tr_-(TJ+dTj))
+                        - alpha*(Tr_-Tamb) - dF/MA*cp0*(Tr_-Tdos) ) / (Cpi+cpm);
+ODE_nK1: diff(nK1,t) = dF/MA;
+
+DAE_xA: 0 = xA - (Tr_ + nA * 1000 * HA/(cpm * V * 900));
+
+IC_nA:  eval(nA,0) = 0;
+IC_nB:  eval(nB,0) = 6.893955747436589;
+IC_nC:  eval(nC,0) = 0;
+IC_Tr:  eval(Tr,0) = 0;
+IC_nK1: eval(nK1,0) = 0;
+
+solve;

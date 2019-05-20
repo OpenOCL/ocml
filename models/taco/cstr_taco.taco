@@ -1,0 +1,112 @@
+# ----------------------------------------------------------------
+# Continuously stirred tank reactor using AMPL and TACO
+# (c) Christian Kirches, Sven Leyffer
+#
+# Source: M. Diehl, 2001
+# ----------------------------------------------------------------
+include OptimalControl.mod;
+
+# time and fixed end time [in s]
+var t;
+var tf := 1500.0, >= 1500, <= 1500;
+
+# molar concentration of species A [mol/l]
+var cA := 2.14, >= -0.02, <= 6.0;
+
+# molar concentration of species B [mol/l]
+var cB := 1.09, >= -0.02, <= 4.0;
+
+# reactor temperature [degrees Celsius]
+var Tr := 114.2, >= 50.0, <= 160.0;
+
+# jacket temperature [degrees Celsius]
+var Tj := 112.9, >= 50.0, <= 160.0;
+
+# feed flow control [1/h]
+var ff := 14.19, >= 3.0, <= 35.0;
+let ff.type := "u0";
+
+# cooling rate control [kJ/h]
+var cr := -1113.5, >= -9000.0, <= 0.0;
+let cr.type := "u0";
+
+# pre-set deviation of initial state from steady state
+# set this to something different from 1.0
+param alpha := 0.8;
+
+# various chemistry parameters
+param k10 :=      1.287E+12;
+param k20 :=      1.287E+12;
+param k30 :=      9.043E+09;
+param cA0 :=      5.1;
+param E1  :=  -9758.3;
+param E2  :=  -9758.3;
+param E3  :=  -8560.0;
+param theta0 := 104.9;
+param rho :=      0.9342;
+param Cp  :=      3.01;
+param H1  :=      4.2;
+param H2  :=    -11.0;
+param H3  :=    -41.85;
+param kw  :=   4032.0;
+param AR  :=      0.215;
+param VR  :=     10.0;
+param mK  :=      5.0;
+param CPK :=      2.0;
+
+# steady state values
+param cAs      :=     2.14021053017;
+param cBs      :=     1.09030436131;
+param theta_s  :=     1.14191084421E+02;
+param theta_Ks :=     1.12906592910E+02;
+param FFs      :=    14.19;
+param Qdot_Ks  := -1113.5;
+
+# objective weights
+param Q11 := sqrt (0.2);
+param Q22 := sqrt (1.0);
+param Q33 := sqrt (0.5);
+param Q44 := sqrt (0.2);
+param R11 := sqrt (0.5);
+param R22 := sqrt (5.0E-7);
+
+# least-squares deviation from steady-state
+minimize Deviation:
+         integral (   ((cA - cAs)*Q11)^2
+					+ ((cB - cBs)*Q22)^2
+					+ ((Tr - theta_s)*Q33)^2
+					+ ((Tj - theta_Ks)*Q44)^2
+					+ ((ff - FFs)*R11)^2
+					+ ((cr - Qdot_Ks)*R22)^2, tf );
+let Deviation.scale := 100.0;
+
+var k1 = (k10*exp(E1/(273.15+Tr)));
+var k2 = (k20*exp(E2/(273.15+Tr)));
+var k3 = (k30*exp(E3/(273.15+Tr)));
+
+# dynamics
+subject to
+
+ODE_cA: diff(cA,t) = (1.0/3600.0) * (ff*(cA0 - cA) - k1*cA - k3*cA^2);
+
+ODE_cB: diff(cB,t) = (1.0/3600.0) * (- ff*cB + k1*cA - k2*cB);
+
+ODE_Tr: diff(Tr,t) = (1.0/3600.0) * ( ff * (theta0 - Tr)
+	                 - 1.0/(rho*Cp) * (k1*cA*H1 + k2*cB*H2 + k3*cA^2*H3)
+			         + kw*AR / (rho*Cp*VR) * (Tj - Tr) );
+ODE_Tj: diff(Tj,t) = (1.0/3600.0) * ( 1.0/(mK*CPK) * (cr + kw*AR * (Tr - Tj)) );
+
+# initial value constraint
+IVC_cA: eval(cA,0) =              (1-alpha)*cAs;
+let IVC_cA.type := "dpc";
+
+IVC_cB: eval(cB,0) =              (1-alpha)*cBs;
+let IVC_cB.type := "dpc";
+
+IVC_Tr: eval(Tr,0) = alpha*85.0 + (1-alpha)*theta_s;
+let IVC_Tr.type := "dpc";
+
+IVC_Tj: eval(Tj,0) = alpha*85.0 + (1-alpha)*theta_Ks;
+let IVC_Tj.type := "dpc";
+
+solve;

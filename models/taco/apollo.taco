@@ -1,0 +1,75 @@
+# ----------------------------------------------------------------
+# Apollo type vehicle reentry problem using AMPL and TACO
+# (c) Christian Kirches, Sven Leyffer
+#
+# Source: Plitt'81, Stoer'92, Leineweber'95, Potschka'08
+# ----------------------------------------------------------------
+include OptimalControl.mod;
+
+var tf >= 220, <= 240, := 230;
+let tf.scale := 225.0;
+
+var t;
+
+var xd0 >= 0.2, <= 0.4, := 0.36;
+let xd0.interp_to := 0.27;
+let xd0.scale := 0.4;
+
+var xd1 >= -0.2, <= 0.1, := -0.1414;
+let xd1.interp_to := 0.0;
+let xd1.scale := 0.1;
+
+var xd2 >= 0.006, <= 0.03, := 0.01914;
+let xd2.interp_to := 0.01196;
+let xd2.scale := 0.02;
+
+var u := 0.5, >= -3.0, <= 2.0;
+let u.type := "u1";
+let u.scale := 1.0;
+let u.slope_min := -0.1;
+let u.slope_max := +0.1;
+
+var pi := 3.1415;
+var beta := 4.26;
+var g := 3.2172e-4;
+var r := 209.0;
+var sm := 53200.0;
+var rho0 := 2.704e-3;
+
+var exp_term = rho0 * exp(-beta * r * xd2);
+
+minimize Lagrangian:
+	integral (10.0 * xd0^3 * sqrt(exp_term), tf);
+let Lagrangian.scale := 0.0275;
+
+subject to
+
+ODE0: diff(xd0,t) = - 0.5 * sm * exp_term * xd0^2 * (1.174 - 0.9*cos(u))
+                    - g * sin(xd1) / (1.0 + xd2)^2;
+ODE1: diff(xd1,t) = 0.5 * sm * exp_term * xd0 * (0.6*sin(u))
+                    + xd0 * cos(xd1) / r / (1.0+xd2)
+                    - g * cos(xd1) / xd0 / (1.0+xd2)^2;
+ODE2: diff(xd2,t) = xd0 * sin(xd1) / r;
+
+SPC0: eval(xd0,0) = 0.36;
+let SPC0.scale := 0.4;
+let SPC0.type := "dpc";
+
+SPC1: eval(xd1,0) = -8.1*pi/180.0;
+let SPC1.scale := 0.2;
+let SPC1.type := "dpc";
+
+SPC2: eval(xd2*r,0) = 4.0;
+let SPC2.scale := 0.02;
+let SPC2.type := "dpc";
+
+EPC0: eval(xd0,tf) = 0.27;
+let EPC0.scale := 0.4;
+
+EPC1: eval(xd1,tf) = 0.0;
+let EPC1.scale := 0.2;
+
+EPC2: eval(xd2*r,tf) = 2.5;
+let EPC2.scale := 0.02;
+
+solve;
