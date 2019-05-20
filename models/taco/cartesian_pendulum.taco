@@ -1,19 +1,23 @@
 include OptimalControl.mod;
 
+param pi := 3.14;
+
 param g := 9.81;
 param l := 1;
 param m := 1;
+param theta0 := 10*pi/180;
 
 var t;
 
-var px := 0, >= -1, <= 1;
+var px := 1, >= -1, <= 1;
 var py := 1, >= -1, <= 1;
 var vx := 0;
 var vy := 0;
 
-var lambda := 1, >= 0;
+var lambda := 1;
+let lambda.type := "dae";
 
-var F := 10, >= -10 <= 10;
+var F := 0, >= -50 <= 50;
 
 var ddpx = -1/m * lambda * px + F;
 var ddpy = -1/m * lambda * py + g;
@@ -30,8 +34,8 @@ subject to
 
   alg: ddpx * px + ddpy * py + vx^2 + vy^2 = 0;
 
-  ic0: eval(px, 0) = 0;
-  ic1: eval(py, 0) = -1;
+  ic0: eval(px, 0) = sin(theta0)*l;
+  ic1: eval(py, 0) = cos(theta0)*l;
   ic2: eval(vx, 0) = 0;
   ic3: eval(vy, 0) = 0;
 

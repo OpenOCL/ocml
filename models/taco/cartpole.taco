@@ -1,0 +1,43 @@
+include OptimalControl.mod;
+
+param pi := 3.14;
+
+param g := 9.81;
+param l := 1;
+param cart_mass := 1;
+param pole_mass := 0.1;
+param theta0 := 10*pi/180;
+
+var t;
+
+var p := 1, >= -5, <= 5;
+var theta := -2*pi, >= -2*pi, <= 2*pi;
+var v := 0;
+var omega := 0;
+
+var F := 0, >= -30 <= 30;
+
+var total_mass = cart_mass+pole_mass;
+var com_pole = pole_mass*0.5;
+
+var ctheta = cos(theta);
+var stheta = sin(theta);
+var dv = (u.F + pml*(x.omega^2*stheta-domega*ctheta)) / m;
+var domega =  (g*stheta + ctheta * (-u.F-pml*x.omega^2*stheta) / m) / (phl * (4.0 / 3.0 - pm * ctheta^2 / m));
+
+minimize control_cost:
+  eval(t, 10);
+
+subject to
+  dpx: diff(p, t) = v;
+  dpy: diff(theta, t) = omega;
+  dvx: diff(v, t) = dv;
+  dvy: diff(omega, t) = domega;
+
+  ic0: eval(p, 0) = 0;
+  ic1: eval(v, 0) = 0;
+  ic2: eval(theta, 0) = pi;
+  ic3: eval(omega, 0) = 0;
+
+let F.type := "u0";
+solve;
