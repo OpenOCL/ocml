@@ -25,7 +25,7 @@ subject to
   dvx: diff(vx, t) = ddpx;
   dvy: diff(vy, t) = ddpy;
   
-  alg: eval(ddp0, t) * p0 + eval(ddp1, t) * p1 + vx^2 + vy^2 = 0;
+  alg: eval(ddpx, t) * eval(px, t) + eval(ddpy, t) * eval(py, t) + eval(vx, t)^2 + eval(vy, t)^2 = 0;
   
   ic0: eval(px, 0)^2 + eval(py, 0)^2 = l^2;
   ic1: eval(px,0)*eval(vx,0) + eval(py,0)*eval(vy,0) = 0;
