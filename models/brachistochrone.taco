@@ -1,0 +1,43 @@
+# ----------------------------------------------------------------
+# Brachistochrone problem using AMPL and TACO
+# (c) Christian Kirches, Sven Leyffer
+# ----------------------------------------------------------------
+include OptimalControl.mod;
+
+var t;
+var tf := 1.0, >= 0.1, <= 1.0;
+let tf.scale := 0.5;		# improves convergence
+
+var x := 0, >= 0, <= 1;
+var y := 0, >= 0, <= 1;
+var v := 0, >= 0, <= 8;
+
+var a := 0.5, >= 0, <= 1.57079327;
+let a.type := "u1";
+let a.slope_min := -10.0;
+let a.slope_max := +10.0;
+
+param gravity := 32.174;   # in ft/s^2
+
+minimize
+
+EndTime: eval (t,tf);
+let EndTime.scale := 0.1;
+
+subject to
+
+ODE_x: diff(x,t) = v*cos(a);
+ODE_y: diff(y,t) = v*sin(a);
+ODE_v: diff(v,t) = gravity*sin(a);
+
+IVC_x: eval(x,0) = 0;
+IVC_y: eval(y,0) = 0;
+IVC_v: eval(v,0) = 0;
+TC_x:  eval(x,tf) = 1.0;
+
+# treating IVCs as boundary constraints improves convergence
+let IVC_x.type := "dpc";
+let IVC_y.type := "dpc";
+let IVC_v.type := "dpc";
+
+solve;
